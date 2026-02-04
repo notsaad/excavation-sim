@@ -1,0 +1,19 @@
+# Build
+build/
+cmake-build-*/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Compiled
+*.o
+*.a
+*.dylib
+*.so
