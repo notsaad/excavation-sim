@@ -62,7 +62,7 @@ int main() {
   std::cout << "Renderer: " << glGetString(GL_RENDERER) << "\n";
 
   glEnable(GL_DEPTH_TEST);
-  glClearColor(0.2f, 0.4f, 0.7f, 1.0f);
+  glClearColor(0.53f, 0.81f, 0.92f, 1.0f);
 
   // array of three 3d points (x, y, z) to render a simple triangle
   float vertices[] = {-0.5f, -0.5f, 0.0f, 0.5f, -0.5f, 0.0f, 0.0f, 0.5f, 0.0f};
