@@ -34,6 +34,7 @@ target_include_directories(glad PUBLIC external/glad/include)
 # ---------- Application ----------
 add_executable(excavation-sim
     src/main.cpp
+    src/rendering/shader.cpp
 )
 
 target_link_libraries(excavation-sim PRIVATE
