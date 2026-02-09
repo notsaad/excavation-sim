@@ -2,6 +2,7 @@
 
 #include <GLFW/glfw3.h>
 
+#include "rendering/shader.h"
 #include <cstdlib>
 #include <iostream>
 
@@ -83,60 +84,8 @@ int main() {
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0,
                         nullptr); // to describe the vertex layout for vertices
   glEnableVertexAttribArray(0);
-
-  // shaders are written as raw c strings which is kind of weird
-
-  // places the dots
-  const char *vertexShaderSource = R"(
-      #version 330 core
-      layout (location = 0) in vec3 aPos;
-
-      void main() {
-        gl_Position = vec4(aPos, 1.0);
-      }
-  )";
-
-  // colors the dots
-  const char *fragmentShaderSource = R"(
-      #version 330 core
-      out vec4 FragColor;
-
-      void main() {
-        FragColor = vec4(1.0, 0.5, 0.2, 1.0);
-      }
-  )";
-
-  // now need to render each individual shader
-  GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-  GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-
-  // link the shaders to their source code
-  glShaderSource(vertexShader, 1, &vertexShaderSource, nullptr);
-  glShaderSource(fragmentShader, 1, &fragmentShaderSource, nullptr);
-
-  // compile shaders
-  glCompileShader(vertexShader);
-  glCompileShader(fragmentShader);
-
-  int vertexSuccess;
-  int fragmentSuccess;
-
-  glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &vertexSuccess);
-  glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &fragmentSuccess);
-  if (!vertexSuccess || !fragmentSuccess)
-    std::cout << "error occurred linking\n";
-
-  // make a program for the gpu to execute
-  GLuint program = glCreateProgram();
-
-  glAttachShader(program, vertexShader);
-  glAttachShader(program, fragmentShader);
-
-  glLinkProgram(program);
-
-  // can delete the shaders now since they're in the program
-  glDeleteShader(vertexShader);
-  glDeleteShader(fragmentShader);
+  
+  Shader basic_shader("shaders/basic.vert", "shaders/basic.frag");
 
   // this is the main render loop that runs 60 times per second (60FPS)
   while (!glfwWindowShouldClose(window)) {
