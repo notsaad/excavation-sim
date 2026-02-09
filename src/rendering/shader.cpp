@@ -69,4 +69,8 @@ Shader::Shader(const std::string &vertex_path,
 
 Shader::~Shader() {
     glDeleteProgram(programID);
-};
+}
+
+void Shader::use() {
+    glUseProgram(programID);
+}

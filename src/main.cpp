@@ -93,7 +93,7 @@ int main() {
             GL_DEPTH_BUFFER_BIT); // sets the background to chose colour
 
     // rendering the triangle
-    glUseProgram(program);
+    basic_shader.use();
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
