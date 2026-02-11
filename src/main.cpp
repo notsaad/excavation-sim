@@ -6,18 +6,24 @@
 #include <cstdlib>
 #include <iostream>
 
-static void errorCallback(int error, const char *description) {
+// anon namespace instead of static functions
+namespace {
+// just called on errors
+void errorCallback(int error, const char *description) {
   std::cerr << "GLFW error " << error << ": " << description << "\n";
 }
 
-static void keyCallback(GLFWwindow *window, int key, int /*scancode*/, int action, int /*mods*/) {
+// called on keyboard presses
+void keyCallback(GLFWwindow *window, int key, int /*scancode*/, int action, int /*mods*/) {
   if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
     glfwSetWindowShouldClose(window, GLFW_TRUE);
 }
 
-static void framebufferSizeCallback(GLFWwindow * /*window*/, int width, int height) {
+// called on window resizes
+void framebufferSizeCallback(GLFWwindow * /*window*/, int width, int height) {
   glViewport(0, 0, width, height);
 }
+} // namespace
 
 int main() {
   glfwSetErrorCallback(errorCallback);
@@ -56,10 +62,12 @@ int main() {
   }
 
   std::cout << "OpenGL " << GLAD_VERSION_MAJOR(version) << "." << GLAD_VERSION_MINOR(version)
-            << "\n";
-  std::cout << "Renderer: " << glGetString(GL_RENDERER) << "\n";
+            << '\n';
+  std::cout << "Renderer: " << glGetString(GL_RENDERER) << '\n';
 
   glEnable(GL_DEPTH_TEST);
+
+  // set background colour
   glClearColor(0.53f, 0.81f, 0.92f, 1.0f);
 
   // array of three 3d points (x, y, z) to render a simple triangle
@@ -71,17 +79,20 @@ int main() {
   glGenVertexArrays(1, &VAO);
   glBindVertexArray(VAO);
 
-  glGenBuffers(1, &VBO); // just memory chunks fed from cpu to gpu to handle
-                         // graphics rendering
-  glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  // static draw tells the GPU data is set once and used multiple times
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices,
-               GL_STATIC_DRAW); // copies user defined data into bound buffer
+  // memory chunks fed from cpu to gpu to handle graphics rendering
+  glGenBuffers(1, &VBO);
 
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0,
-                        nullptr); // to describe the vertex layout for vertices
+  // static draw tells the GPU data is set once and used multiple times
+  glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+  // copies user defined data into bound buffer
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+  // to describe the vertex layout for vertices
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
   glEnableVertexAttribArray(0);
 
+  // using shader class and giving path to shader code
   Shader basic_shader("shaders/basic.vert", "shaders/basic.frag");
 
   // this is the main render loop that runs 60 times per second (60FPS)

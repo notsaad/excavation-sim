@@ -26,6 +26,8 @@ std::string Shader::readFile(const std::string &file_path) {
 }
 
 Shader::Shader(const std::string &vertex_path, const std::string &fragment_path) {
+  // make a program for the gpu to execute
+  programID = glCreateProgram();
 
   std::string vertexCode = readFile(vertex_path);
   std::string fragmentCode = readFile(fragment_path);
@@ -50,15 +52,15 @@ Shader::Shader(const std::string &vertex_path, const std::string &fragment_path)
 
   glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &vertexSuccess);
   glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &fragmentSuccess);
+
   if (!vertexSuccess || !fragmentSuccess)
     std::cout << "error occurred linking\n";
 
-  // make a program for the gpu to execute
-  programID = glCreateProgram();
-
+  // attaching is just associating shaders to program
   glAttachShader(programID, vertexShader);
   glAttachShader(programID, fragmentShader);
 
+  // makes sure vert and frag are compatible and makes final gpu executable binary
   glLinkProgram(programID);
 
   // linked to program, can delete shaders
