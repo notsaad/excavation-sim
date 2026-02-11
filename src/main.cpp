@@ -10,14 +10,12 @@ static void errorCallback(int error, const char *description) {
   std::cerr << "GLFW error " << error << ": " << description << "\n";
 }
 
-static void keyCallback(GLFWwindow *window, int key, int /*scancode*/,
-                        int action, int /*mods*/) {
+static void keyCallback(GLFWwindow *window, int key, int /*scancode*/, int action, int /*mods*/) {
   if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
     glfwSetWindowShouldClose(window, GLFW_TRUE);
 }
 
-static void framebufferSizeCallback(GLFWwindow * /*window*/, int width,
-                                    int height) {
+static void framebufferSizeCallback(GLFWwindow * /*window*/, int width, int height) {
   glViewport(0, 0, width, height);
 }
 
@@ -37,8 +35,7 @@ int main() {
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-  GLFWwindow *window =
-      glfwCreateWindow(1280, 720, "Excavation Simulator", nullptr, nullptr);
+  GLFWwindow *window = glfwCreateWindow(1280, 720, "Excavation Simulator", nullptr, nullptr);
   if (!window) {
     std::cerr << "Failed to create GLFW window\n";
     glfwTerminate();
@@ -58,8 +55,8 @@ int main() {
     return EXIT_FAILURE;
   }
 
-  std::cout << "OpenGL " << GLAD_VERSION_MAJOR(version) << "."
-            << GLAD_VERSION_MINOR(version) << "\n";
+  std::cout << "OpenGL " << GLAD_VERSION_MAJOR(version) << "." << GLAD_VERSION_MINOR(version)
+            << "\n";
   std::cout << "Renderer: " << glGetString(GL_RENDERER) << "\n";
 
   glEnable(GL_DEPTH_TEST);
@@ -84,13 +81,12 @@ int main() {
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0,
                         nullptr); // to describe the vertex layout for vertices
   glEnableVertexAttribArray(0);
-  
+
   Shader basic_shader("shaders/basic.vert", "shaders/basic.frag");
 
   // this is the main render loop that runs 60 times per second (60FPS)
   while (!glfwWindowShouldClose(window)) {
-    glClear(GL_COLOR_BUFFER_BIT |
-            GL_DEPTH_BUFFER_BIT); // sets the background to chose colour
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // sets the background to chose colour
 
     // rendering the triangle
     basic_shader.use();

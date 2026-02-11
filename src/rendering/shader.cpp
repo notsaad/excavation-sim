@@ -25,8 +25,7 @@ std::string Shader::readFile(const std::string &file_path) {
   return buffer.str();
 }
 
-Shader::Shader(const std::string &vertex_path,
-               const std::string &fragment_path) {
+Shader::Shader(const std::string &vertex_path, const std::string &fragment_path) {
 
   std::string vertexCode = readFile(vertex_path);
   std::string fragmentCode = readFile(fragment_path);
@@ -48,7 +47,7 @@ Shader::Shader(const std::string &vertex_path,
   glCompileShader(fragmentShader);
 
   int vertexSuccess, fragmentSuccess;
-  
+
   glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &vertexSuccess);
   glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &fragmentSuccess);
   if (!vertexSuccess || !fragmentSuccess)
@@ -61,16 +60,12 @@ Shader::Shader(const std::string &vertex_path,
   glAttachShader(programID, fragmentShader);
 
   glLinkProgram(programID);
-  
+
   // linked to program, can delete shaders
   glDeleteShader(vertexShader);
   glDeleteShader(fragmentShader);
 }
 
-Shader::~Shader() {
-    glDeleteProgram(programID);
-}
+Shader::~Shader() { glDeleteProgram(programID); }
 
-void Shader::use() {
-    glUseProgram(programID);
-}
+void Shader::use() { glUseProgram(programID); }
