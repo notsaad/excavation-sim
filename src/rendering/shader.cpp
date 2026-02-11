@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 
 #include <cstdlib>
+#include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 #include <sstream>
 
@@ -71,3 +72,8 @@ Shader::Shader(const std::string &vertex_path, const std::string &fragment_path)
 Shader::~Shader() { glDeleteProgram(programID); }
 
 void Shader::use() { glUseProgram(programID); }
+
+void Shader::uniformInfo(const std::string &uniform, const glm::mat4 &matrix) {
+  int location = glGetUniformLocation(programID, uniform.c_str());
+  glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(matrix));
+}

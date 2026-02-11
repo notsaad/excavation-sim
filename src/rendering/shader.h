@@ -1,5 +1,6 @@
 #pragma once
 
+#include <glm/glm.hpp>
 #include <string>
 
 class Shader {
@@ -11,4 +12,5 @@ public:
   Shader(const std::string &vertex_path, const std::string &fragment_path);
   ~Shader();
   void use();
+  void uniformInfo(const std::string &uniform, const glm::mat4 &matrix);
 };

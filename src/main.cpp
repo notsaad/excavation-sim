@@ -118,13 +118,21 @@ int main() {
   // perspective matrix deals with converting 3d coordinates to 2d output (to screen)
   glm::mat4 perspective = glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
   // perspective takes in fov, aspect ratio, when to clip a close object, when to clip a far object
+  
 
   // this is the main render loop that runs 60 times per second (60FPS)
   while (!glfwWindowShouldClose(window)) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // sets the background to chose colour
 
+    // rotate the triangle based on current time
+    model = glm::rotate(model, static_cast<float>(glfwGetTime()), glm::vec3(0.0f, 1.0f, 0.0f));
+    
+    glm::mat4 mvp = perspective * view * model;
+    // 
     // rendering the triangle
     basic_shader.use();
+    basic_shader.uniformInfo("mvp", mvp);
+    
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
