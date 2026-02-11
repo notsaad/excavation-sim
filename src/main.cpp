@@ -2,6 +2,15 @@
 
 #include <GLFW/glfw3.h>
 
+#include <glm/glm.hpp>                  // mat4, vec3, vec4 (core types)
+#include <glm/gtc/matrix_transform.hpp> // lookAt, perspective (transformations)
+#include <glm/gtc/type_ptr.hpp>         // value_ptr (convert to OpenGL pointer)
+
+#include "glm/ext/matrix_clip_space.hpp"
+#include "glm/ext/matrix_float4x4.hpp"
+#include "glm/ext/matrix_transform.hpp"
+#include "glm/ext/vector_float3.hpp"
+#include "glm/trigonometric.hpp"
 #include "rendering/shader.h"
 #include <cstdlib>
 #include <iostream>
@@ -94,6 +103,21 @@ int main() {
 
   // using shader class and giving path to shader code
   Shader basic_shader("shaders/basic.vert", "shaders/basic.frag");
+  
+  // model matrix (4x4 identity matrix)
+  glm::mat4 model = glm::mat4(1.0f);
+  
+  glm::vec3 eye(0.0f, 0.0f, 3.0f); // where the camera is
+  glm::vec3 target(0.0f, 0.0f, 0.0f); // where the camera is pointing
+  glm::vec3 up(0.0f, 1.0f, 0.0f); // what way is up (y = 1)
+  
+  // view matrix stores where the camera currently is and what its looking at
+  glm::mat4 view = glm::lookAt(eye, target, up);
+  // lookAt takes three vectors (eye, target, up)
+  
+  // perspective matrix deals with converting 3d coordinates to 2d output (to screen)
+  glm::mat4 perspective = glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
+  // perspective takes in fov, aspect ratio, when to clip a close object, when to clip a far object
 
   // this is the main render loop that runs 60 times per second (60FPS)
   while (!glfwWindowShouldClose(window)) {
