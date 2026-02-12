@@ -86,7 +86,8 @@ int main() {
 
   for (size_t i = 0; i < 32; ++i) {
     for (size_t j = 0; j < 32; ++j) {
-      vertices.insert(vertices.end(), {i * SPACING, static_cast<float>(heights[i][j]), j * SPACING});
+      vertices.insert(vertices.end(),
+                      {i * SPACING, static_cast<float>(heights[i][j]), j * SPACING});
     }
   }
 
@@ -109,7 +110,8 @@ int main() {
   glBindVertexArray(VAO);
   glGenBuffers(1, &EBO);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, connections.size() * sizeof(unsigned int), connections.data(), GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, connections.size() * sizeof(unsigned int),
+               connections.data(), GL_STATIC_DRAW);
   // memory chunks fed from cpu to gpu to handle graphics rendering
   glGenBuffers(1, &VBO);
   // static draw tells the GPU data is set once and used multiple times
@@ -133,8 +135,8 @@ int main() {
 
   glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // TODO: visual debugging
 
-      // this is the main render loop that runs 60 times per second (60FPS)
-      while (!glfwWindowShouldClose(window)) {
+  // this is the main render loop that runs 60 times per second (60FPS)
+  while (!glfwWindowShouldClose(window)) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // sets the background to chose colour
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
