@@ -11,6 +11,7 @@
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/vector_float3.hpp"
 #include "glm/trigonometric.hpp"
+#include "rendering/camera.h"
 #include "rendering/shader.h"
 #include <cstdlib>
 #include <iostream>
@@ -103,36 +104,50 @@ int main() {
 
   // using shader class and giving path to shader code
   Shader basic_shader("shaders/basic.vert", "shaders/basic.frag");
-  
+
   // model matrix (4x4 identity matrix)
   glm::mat4 model = glm::mat4(1.0f);
-  
-  glm::vec3 eye(0.0f, 0.0f, 3.0f); // where the camera is
-  glm::vec3 target(0.0f, 0.0f, 0.0f); // where the camera is pointing
-  glm::vec3 up(0.0f, 1.0f, 0.0f); // what way is up (y = 1)
-  
-  // view matrix stores where the camera currently is and what its looking at
-  glm::mat4 view = glm::lookAt(eye, target, up);
-  // lookAt takes three vectors (eye, target, up)
-  
+
+  // this includes the view matrix
+  Camera camera;
+
   // perspective matrix deals with converting 3d coordinates to 2d output (to screen)
   glm::mat4 perspective = glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
   // perspective takes in fov, aspect ratio, when to clip a close object, when to clip a far object
-  
 
   // this is the main render loop that runs 60 times per second (60FPS)
   while (!glfwWindowShouldClose(window)) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // sets the background to chose colour
+    
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+        camera.moveForward();
+    }
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+        camera.moveLeft();
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+        camera.moveBackward();
+    }
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+        camera.moveRight();
+    }
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+        camera.moveUp();
+    }
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+        camera.moveDown();
+    }
 
     // rotate the triangle based on current time
-    model = glm::rotate(model, static_cast<float>(glfwGetTime()), glm::vec3(0.0f, 1.0f, 0.0f));
+    model = glm::rotate(glm::mat4(1.0f), static_cast<float>(glfwGetTime()),
+                        glm::vec3(0.0f, 1.0f, 0.0f));
     
-    glm::mat4 mvp = perspective * view * model;
-    // 
+    glm::mat4 mvp = perspective * camera.getViewMatrix() * model;
+    //
     // rendering the triangle
     basic_shader.use();
     basic_shader.uniformInfo("mvp", mvp);
-    
+
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 

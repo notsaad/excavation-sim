@@ -11,13 +11,13 @@ void Camera::updateFront() {
     y = glm::sin(pitch);
     z = glm::sin(yaw) * glm::cos(pitch);
     
-    glm::vec3 front(x, y, z);
-    front = glm::normalize(front);
+    glm::vec3 new_front(x, y, z);
+    front = glm::normalize(new_front);
 }
 
 Camera::Camera() {
   position = glm::vec3(0.0f, 0.0f, 3.0f);
-  front = updateFront();
+  updateFront();
 }
 
 void Camera::moveForward() {
