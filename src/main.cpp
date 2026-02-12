@@ -1,3 +1,4 @@
+#include <array>
 #include <glad/gl.h>
 
 #include <GLFW/glfw3.h>
@@ -36,7 +37,8 @@ void framebufferSizeCallback(GLFWwindow * /*window*/, int width, int height) {
 } // namespace
 
 int main() {
-  glfwSetErrorCallback(errorCallback);
+    const float SPACING = 0.1f;
+    glfwSetErrorCallback(errorCallback);
 
   if (!glfwInit()) {
     std::cerr << "Failed to initialize GLFW\n";
@@ -85,19 +87,14 @@ int main() {
 
   GLuint VBO; // VBO -> vertex buffer object
   GLuint VAO; // VAO -> vertex array object (how to read the vbo)
-
   glGenVertexArrays(1, &VAO);
   glBindVertexArray(VAO);
-
   // memory chunks fed from cpu to gpu to handle graphics rendering
   glGenBuffers(1, &VBO);
-
   // static draw tells the GPU data is set once and used multiple times
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
   // copies user defined data into bound buffer
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
   // to describe the vertex layout for vertices
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
   glEnableVertexAttribArray(0);
@@ -107,43 +104,65 @@ int main() {
 
   // model matrix (4x4 identity matrix)
   glm::mat4 model = glm::mat4(1.0f);
-
   // this includes the view matrix
   Camera camera;
-
   // perspective matrix deals with converting 3d coordinates to 2d output (to screen)
   glm::mat4 perspective = glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
   // perspective takes in fov, aspect ratio, when to clip a close object, when to clip a far object
+  
+  std::vector<float> vertex;
+  std::array<std::array<int, 32>, 32> heights{};
+  std::vector<unsigned int> connections;
+  
+  for (size_t i=0; i<32; ++i) {
+    for (size_t j=0; j<32; ++j) {
+        vertex.push_back(i * SPACING);
+        vertex.push_back(heights[i][j]);
+        vertex.push_back(j * SPACING);
+    }
+  }
+  
+  for (size_t i=0; i<31; ++i) {
+    for (size_t j=0; j<31; ++j) {
+        unsigned int top_left = i * heights.size() + j;
+        unsigned int top_right = i * heights.size() + (j+1);
+        unsigned int bottom_left = (i+1) * heights.size() + j;
+        unsigned int bottom_right = (i+1) * heights.size() + (j+1);
+        
+        connections.insert(connections.end(), {top_left, bottom_left, bottom_right});
+        connections.insert(connections.end(), {top_left, bottom_right, top_right});
+    }
+  }
 
   // this is the main render loop that runs 60 times per second (60FPS)
   while (!glfwWindowShouldClose(window)) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // sets the background to chose colour
-    
+
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-        camera.moveForward();
+      camera.moveForward();
     }
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-        camera.moveLeft();
+      camera.moveLeft();
     }
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-        camera.moveBackward();
+      camera.moveBackward();
     }
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-        camera.moveRight();
+      camera.moveRight();
     }
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-        camera.moveUp();
+      camera.moveUp();
     }
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-        camera.moveDown();
+      camera.moveDown();
     }
 
     // rotate the triangle based on current time
     model = glm::rotate(glm::mat4(1.0f), static_cast<float>(glfwGetTime()),
                         glm::vec3(0.0f, 1.0f, 0.0f));
-    
+
     glm::mat4 mvp = perspective * camera.getViewMatrix() * model;
-    //
+
     // rendering the triangle
     basic_shader.use();
     basic_shader.uniformInfo("mvp", mvp);
