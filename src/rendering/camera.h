@@ -13,7 +13,7 @@ private:
   glm::vec3 front;
   float speed = 0.05f;
   
-  glm::vec3 updateFront(float yaw, float pitch);
+  void updateFront();
 
 public:
   Camera();
