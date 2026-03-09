@@ -64,7 +64,8 @@ float height_function(size_t x, size_t y) {
   return 0.15f * std::sin(x * 0.4f) + 0.1f * std::sin(y * 0.6f);
 }
 
-glm::vec3 normal_computation(const std::array<std::array<float, 32>, 32>& heights, size_t i, size_t j) {
+glm::vec3 normal_computation(const std::array<std::array<float, 32>, 32> &heights, size_t i,
+                             size_t j) {
   float left = i == 0 ? heights[i][j] : heights[i - 1][j];
   float right = i == 31 ? heights[i][j] : heights[i + 1][j];
   float up = j == 31 ? heights[i][j] : heights[i][j + 1];
@@ -133,31 +134,76 @@ int main() {
   glClearColor(0.53f, 0.81f, 0.92f, 1.0f);
 
   std::vector<float> vertices;
-  std::array<std::array<float, 32>, 32> heights{};
+  std::array<std::array<float, 32>, 32> terrain{};
   std::vector<unsigned int> connections;
 
-  // set initial heights in height map
+  // clang-format off
+  // each vertex: x, y, z, nx, ny, nz
+  std::array<float, 144> cubeVertices = {
+    // front face (+Z)
+    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+     0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+    // back face (-Z)
+    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+     0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+    // top face (+Y)
+    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+    // bottom face (-Y)
+    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+    // right face (+X)
+     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+    // left face (-X)
+    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+  };
+
+  std::array<unsigned int, 36> cubeIndices = {
+      0,  1,  2,  0,  2,  3,  // front
+      4,  5,  6,  4,  6,  7,  // back
+      8,  9,  10, 8,  10, 11, // top
+      12, 13, 14, 12, 14, 15, // bottom
+      16, 17, 18, 16, 18, 19, // right
+      20, 21, 22, 20, 22, 23, // left
+  };
+  // clang-format on
+
+  // set initial heights in terrain array
   for (size_t i = 0; i < 32; ++i) {
     for (size_t j = 0; j < 32; ++j) {
-      heights[i][j] = height_function(i, j);
+      terrain[i][j] = height_function(i, j);
     }
   }
 
   // set vectors
   for (size_t i = 0; i < 32; ++i) {
     for (size_t j = 0; j < 32; ++j) {
-      glm::vec3 n = normal_computation(heights, i, j);
-      vertices.insert(vertices.end(), {i * SPACING, heights[i][j], j * SPACING, n.x, n.y, n.z});
+      glm::vec3 n = normal_computation(terrain, i, j);
+      vertices.insert(vertices.end(), {i * SPACING, terrain[i][j], j * SPACING, n.x, n.y, n.z});
     }
   }
 
   // 32x32 grid filled with triangles
   for (size_t i = 0; i < 31; ++i) {
     for (size_t j = 0; j < 31; ++j) {
-      unsigned int top_left = i * heights.size() + j;
-      unsigned int top_right = i * heights.size() + (j + 1);
-      unsigned int bottom_left = (i + 1) * heights.size() + j;
-      unsigned int bottom_right = (i + 1) * heights.size() + (j + 1);
+      unsigned int top_left = i * terrain.size() + j;
+      unsigned int top_right = i * terrain.size() + (j + 1);
+      unsigned int bottom_left = (i + 1) * terrain.size() + j;
+      unsigned int bottom_right = (i + 1) * terrain.size() + (j + 1);
 
       connections.insert(connections.end(), {top_left, bottom_left, bottom_right});
       connections.insert(connections.end(), {top_left, bottom_right, top_right});
@@ -179,18 +225,41 @@ int main() {
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
   // copies user defined data into bound buffer
   glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_DYNAMIC_DRAW);
-  
+
   // tells opengl how to read position data from the buffer
   // we have the vector and its normal vector both stored so there is two calls to read
   // one is standard vectors, the other is starting from the normals
-  
+
   // position: attribute 0, offset 0
   // index, component #, data type, normalize?, stride, offset
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0);
-  
+
   // normal: attribute 1, offset 3 floats
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
+  glEnableVertexAttribArray(1);
+
+  GLuint bucketVAO, bucketVBO, bucketEBO;
+
+  glGenVertexArrays(1, &bucketVAO);
+  glBindVertexArray(bucketVAO);
+
+  glGenBuffers(1, &bucketEBO);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bucketEBO);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, cubeIndices.size() * sizeof(unsigned int),
+               cubeIndices.data(), GL_STATIC_DRAW);
+
+  glGenBuffers(1, &bucketVBO);
+  glBindBuffer(GL_ARRAY_BUFFER, bucketVBO);
+  glBufferData(GL_ARRAY_BUFFER, cubeVertices.size() * sizeof(float), cubeVertices.data(),
+               GL_DYNAMIC_DRAW);
+
+  // position
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
+  glEnableVertexAttribArray(0);
+
+  // normals
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
 
   // using shader class and giving path to shader code
@@ -203,10 +272,13 @@ int main() {
   glm::mat4 perspective = glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
   // perspective takes in fov, aspect ratio, when to clip a close object, when to clip a far object
 
+  glm::vec3 bucketPos(1.5f, 0.0f, 1.5f);
+
   // this is the main render loop that runs 60 times per second (60FPS)
   while (!glfwWindowShouldClose(window)) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // sets the background to chose colour
 
+    // camera movement checks (wasd/shift/space)
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
       camera.moveForward();
     }
@@ -226,18 +298,38 @@ int main() {
       camera.moveDown();
     }
 
-    glm::mat4 mvp = perspective * camera.getViewMatrix() * model;
+    // bucket movement checks (arrow keys)
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+      bucketPos.x -= 0.02f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+      bucketPos.x += 0.02f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+      bucketPos.z += 0.02f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+      bucketPos.z -= 0.02f;
+    }
 
-    // rendering the triangle
     basic_shader.use();
-    basic_shader.uniformInfo("mvp", mvp);
 
+    // terrain
+    glm::mat4 terrainMvp = perspective * camera.getViewMatrix() * model;
+    basic_shader.uniformInfo("mvp", terrainMvp);
+    basic_shader.uniformInfo("objectColour", glm::vec3(0.55f, 0.36f, 0.2f));
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, connections.size(), GL_UNSIGNED_INT, 0);
 
+    // bucket
+    glm::mat4 bucketModel = glm::translate(glm::mat4(1.0f), bucketPos);
+    glm::mat4 bucketMvp = perspective * camera.getViewMatrix() * bucketModel;
+    basic_shader.uniformInfo("mvp", bucketMvp);
+    basic_shader.uniformInfo("objectColour", glm::vec3(0.9f, 0.75, 0.2f));
+    glBindVertexArray(bucketVAO);
+    glDrawElements(GL_TRIANGLES, cubeIndices.size(), GL_UNSIGNED_INT, 0);
+
     // TODO: simulation step
-    // TODO: render terrain
-    // TODO: render bucket
 
     glfwSwapBuffers(window); // shows new frame
     glfwPollEvents();        // polls for actions
