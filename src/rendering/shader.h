@@ -13,4 +13,5 @@ public:
   ~Shader();
   void use();
   void uniformInfo(const std::string &uniform, const glm::mat4 &matrix);
+  void uniformInfo(const std::string &uniform, const glm::vec3 &vec);
 };

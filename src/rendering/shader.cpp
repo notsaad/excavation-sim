@@ -77,3 +77,8 @@ void Shader::uniformInfo(const std::string &uniform, const glm::mat4 &matrix) {
   int location = glGetUniformLocation(programID, uniform.c_str());
   glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(matrix));
 }
+
+void Shader::uniformInfo(const std::string &uniform, const glm::vec3 &vec) {
+  int location = glGetUniformLocation(programID, uniform.c_str());
+  glUniform3fv(location, 1, glm::value_ptr(vec));
+}
