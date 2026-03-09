@@ -32,6 +32,31 @@ void keyCallback(GLFWwindow *window, int key, int /*scancode*/, int action, int 
 void framebufferSizeCallback(GLFWwindow * /*window*/, int width, int height) {
   glViewport(0, 0, width, height);
 }
+
+void cursorPosCallBack(GLFWwindow *window, double xpos, double ypos){
+    // static means variables persist across calls without being global
+    static bool firstMouseMovement = 1;
+    static double lastX = 0.0;
+    static double lastY = 0.0;
+    
+    // this is because the first xpos/ypos could be anywhere on the screen
+    // and we dont want crazy drastic movement to start
+    if (firstMouseMovement) {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouseMovement = 0;
+        return;
+    }
+    
+    float xOffset = xpos - lastX;
+    float yOffset = lastY - ypos;
+    
+    lastX = xpos;
+    lastY = ypos;
+    
+    Camera *camera = static_cast<Camera*>(glfwGetWindowUserPointer(window));
+    camera->look(xOffset, yOffset);
+}
 } // namespace
 
 int main() {
@@ -62,6 +87,14 @@ int main() {
   glfwSwapInterval(1); // vsync
   glfwSetKeyCallback(window, keyCallback);
   glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
+  
+  // hides cursor and locks it to window (for camera movement)
+  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  
+  Camera camera;
+  // so that you can access the camera in the cursor pos callback
+  glfwSetWindowUserPointer(window, &camera);
+  glfwSetCursorPosCallback(window, cursorPosCallBack);
 
   // Load OpenGL functions
   int version = gladLoadGL(glfwGetProcAddress);
@@ -91,6 +124,7 @@ int main() {
     }
   }
 
+  // 32x32 grid filled with triangles
   for (size_t i = 0; i < 31; ++i) {
     for (size_t j = 0; j < 31; ++j) {
       unsigned int top_left = i * heights.size() + j;
@@ -128,7 +162,6 @@ int main() {
   // model matrix (4x4 identity matrix)
   glm::mat4 model = glm::mat4(1.0f);
   // this includes the view matrix
-  Camera camera;
   // perspective matrix deals with converting 3d coordinates to 2d output (to screen)
   glm::mat4 perspective = glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
   // perspective takes in fov, aspect ratio, when to clip a close object, when to clip a far object

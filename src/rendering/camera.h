@@ -23,5 +23,6 @@ public:
   void moveLeft();
   void moveUp();
   void moveDown();
+  void look(float xOffset, float yOffset);
   glm::mat4 getViewMatrix();
 };
