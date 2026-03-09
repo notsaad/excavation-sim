@@ -15,6 +15,8 @@
 #include <cstdlib>
 #include <iostream>
 
+constexpr float SPACING = 0.1f;
+
 // anon namespace instead of static functions
 namespace {
 // just called on errors
@@ -61,10 +63,23 @@ void cursorPosCallBack(GLFWwindow *window, double xpos, double ypos) {
 float height_function(size_t x, size_t y) {
   return 0.15f * std::sin(x * 0.4f) + 0.1f * std::sin(y * 0.6f);
 }
+
+glm::vec3 normal_computation(const std::array<std::array<float, 32>, 32>& heights, size_t i, size_t j) {
+  float left = i == 0 ? heights[i][j] : heights[i - 1][j];
+  float right = i == 31 ? heights[i][j] : heights[i + 1][j];
+  float up = j == 31 ? heights[i][j] : heights[i][j + 1];
+  float down = j == 0 ? heights[i][j] : heights[i][j - 1];
+
+  glm::vec3 tangentX = glm::vec3(2 * SPACING, right - left, 0);
+  glm::vec3 tangentZ = glm::vec3(0, up - down, 2 * SPACING);
+
+  glm::vec3 normal = glm::normalize(cross(tangentZ, tangentX));
+  return normal;
+}
+
 } // namespace
 
 int main() {
-  const float SPACING = 0.1f;
   glfwSetErrorCallback(errorCallback);
 
   if (!glfwInit()) {
@@ -125,8 +140,14 @@ int main() {
   for (size_t i = 0; i < 32; ++i) {
     for (size_t j = 0; j < 32; ++j) {
       heights[i][j] = height_function(i, j);
-      vertices.insert(vertices.end(),
-                      {i * SPACING, static_cast<float>(heights[i][j]), j * SPACING});
+    }
+  }
+
+  // set vectors
+  for (size_t i = 0; i < 32; ++i) {
+    for (size_t j = 0; j < 32; ++j) {
+      glm::vec3 n = normal_computation(heights, i, j);
+      vertices.insert(vertices.end(), {i * SPACING, heights[i][j], j * SPACING, n.x, n.y, n.z});
     }
   }
 
@@ -158,9 +179,19 @@ int main() {
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
   // copies user defined data into bound buffer
   glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_DYNAMIC_DRAW);
-  // to describe the vertex layout for vertices
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+  
+  // tells opengl how to read position data from the buffer
+  // we have the vector and its normal vector both stored so there is two calls to read
+  // one is standard vectors, the other is starting from the normals
+  
+  // position: attribute 0, offset 0
+  // index, component #, data type, normalize?, stride, offset
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
   glEnableVertexAttribArray(0);
+  
+  // normal: attribute 1, offset 3 floats
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+  glEnableVertexAttribArray(1);
 
   // using shader class and giving path to shader code
   Shader basic_shader("shaders/basic.vert", "shaders/basic.frag");
