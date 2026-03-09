@@ -33,29 +33,33 @@ void framebufferSizeCallback(GLFWwindow * /*window*/, int width, int height) {
   glViewport(0, 0, width, height);
 }
 
-void cursorPosCallBack(GLFWwindow *window, double xpos, double ypos){
-    // static means variables persist across calls without being global
-    static bool firstMouseMovement = 1;
-    static double lastX = 0.0;
-    static double lastY = 0.0;
-    
-    // this is because the first xpos/ypos could be anywhere on the screen
-    // and we dont want crazy drastic movement to start
-    if (firstMouseMovement) {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouseMovement = 0;
-        return;
-    }
-    
-    float xOffset = xpos - lastX;
-    float yOffset = lastY - ypos;
-    
+void cursorPosCallBack(GLFWwindow *window, double xpos, double ypos) {
+  // static means variables persist across calls without being global
+  static bool firstMouseMovement = 1;
+  static double lastX = 0.0;
+  static double lastY = 0.0;
+
+  // this is because the first xpos/ypos could be anywhere on the screen
+  // and we dont want crazy drastic movement to start
+  if (firstMouseMovement) {
     lastX = xpos;
     lastY = ypos;
-    
-    Camera *camera = static_cast<Camera*>(glfwGetWindowUserPointer(window));
-    camera->look(xOffset, yOffset);
+    firstMouseMovement = 0;
+    return;
+  }
+
+  float xOffset = xpos - lastX;
+  float yOffset = lastY - ypos;
+
+  lastX = xpos;
+  lastY = ypos;
+
+  Camera *camera = static_cast<Camera *>(glfwGetWindowUserPointer(window));
+  camera->look(xOffset, yOffset);
+}
+
+float height_function(size_t x, size_t y) {
+  return 0.15f * std::sin(x * 0.4f) + 0.1f * std::sin(y * 0.6f);
 }
 } // namespace
 
@@ -87,10 +91,10 @@ int main() {
   glfwSwapInterval(1); // vsync
   glfwSetKeyCallback(window, keyCallback);
   glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
-  
+
   // hides cursor and locks it to window (for camera movement)
   glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-  
+
   Camera camera;
   // so that you can access the camera in the cursor pos callback
   glfwSetWindowUserPointer(window, &camera);
@@ -114,11 +118,13 @@ int main() {
   glClearColor(0.53f, 0.81f, 0.92f, 1.0f);
 
   std::vector<float> vertices;
-  std::array<std::array<int, 32>, 32> heights{};
+  std::array<std::array<float, 32>, 32> heights{};
   std::vector<unsigned int> connections;
 
+  // set initial heights in height map
   for (size_t i = 0; i < 32; ++i) {
     for (size_t j = 0; j < 32; ++j) {
+      heights[i][j] = height_function(i, j);
       vertices.insert(vertices.end(),
                       {i * SPACING, static_cast<float>(heights[i][j]), j * SPACING});
     }
@@ -151,7 +157,7 @@ int main() {
   // static draw tells the GPU data is set once and used multiple times
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
   // copies user defined data into bound buffer
-  glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_DYNAMIC_DRAW);
   // to describe the vertex layout for vertices
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
   glEnableVertexAttribArray(0);
@@ -165,8 +171,6 @@ int main() {
   // perspective matrix deals with converting 3d coordinates to 2d output (to screen)
   glm::mat4 perspective = glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
   // perspective takes in fov, aspect ratio, when to clip a close object, when to clip a far object
-
-  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // TODO: visual debugging
 
   // this is the main render loop that runs 60 times per second (60FPS)
   while (!glfwWindowShouldClose(window)) {
