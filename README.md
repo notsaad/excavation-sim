@@ -14,7 +14,7 @@ cmake --build build
 ## Running
 
 ```bash
-./build/excavation-sim
+./run.sh
 ```
 
 Press Escape to close the window.
