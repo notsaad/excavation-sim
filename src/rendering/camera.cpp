@@ -16,7 +16,7 @@ void Camera::updateFront() {
 }
 
 Camera::Camera() {
-  position = glm::vec3(1.5f, 2.0f, -4.0f);
+  position = glm::vec3(1.5f, 2.0f, -7.0f);
   updateFront();
 }
 
@@ -39,20 +39,20 @@ void Camera::moveUp() { position += (up * speed); }
 void Camera::moveDown() { position -= (up * speed); }
 
 void Camera::look(float xOffset, float yOffset) {
-    yaw += (xOffset * 0.002f);
-    
-    pitch += (yOffset * 0.002f);
-    // this is clamping the pitch
-    // this is done bc if pitch = +-90 degrees then you look straight up
-    // and this breaks glm::lookAt as it uses cross product and
-    // both vectors would be parallel
-    if (pitch > glm::radians(89.0f)) {
-        pitch = glm::radians(89.0f);
-    } else if (pitch < glm::radians(-89.0f)) {
-        pitch = glm::radians(-89.0f);
-    }
-    
-    updateFront();
+  yaw += (xOffset * 0.002f);
+
+  pitch += (yOffset * 0.002f);
+  // this is clamping the pitch
+  // this is done bc if pitch = +-90 degrees then you look straight up
+  // and this breaks glm::lookAt as it uses cross product and
+  // both vectors would be parallel
+  if (pitch > glm::radians(89.0f)) {
+    pitch = glm::radians(89.0f);
+  } else if (pitch < glm::radians(-89.0f)) {
+    pitch = glm::radians(-89.0f);
+  }
+
+  updateFront();
 }
 
 glm::mat4 Camera::getViewMatrix() {

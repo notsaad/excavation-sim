@@ -272,7 +272,7 @@ int main() {
   glm::mat4 perspective = glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
   // perspective takes in fov, aspect ratio, when to clip a close object, when to clip a far object
 
-  glm::vec3 bucketPos(1.5f, 0.0f, 1.5f);
+  glm::vec3 bucketPos(1.5f, 0.5f, -1.5f);
 
   // this is the main render loop that runs 60 times per second (60FPS)
   while (!glfwWindowShouldClose(window)) {
