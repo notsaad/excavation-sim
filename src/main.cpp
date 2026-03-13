@@ -348,8 +348,8 @@ int main() {
     // also set the bucket's height to the current terrain height
     // to make it look like its 'digging'
     bucketPos.y = terrain[bucketRow][bucketCol];
-
-    glm::mat4 bucketModel = glm::translate(glm::mat4(1.0f), bucketPos);
+    glm::mat4 bucketModel = glm::translate(glm::mat4(1.0f), bucketPos) *
+                             glm::scale(glm::mat4(1.0f), glm::vec3(0.3f));
     glm::mat4 bucketMvp = perspective * camera.getViewMatrix() * bucketModel;
     basic_shader.uniformInfo("mvp", bucketMvp);
     basic_shader.uniformInfo("objectColour", glm::vec3(0.9f, 0.75, 0.2f));
