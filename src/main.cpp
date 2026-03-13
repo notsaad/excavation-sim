@@ -65,19 +65,22 @@ float height_function(size_t x, size_t y) {
   return 0.15f * std::sin(x * 0.4f) + 0.1f * std::sin(y * 0.6f);
 }
 
-void lower_neighbours(size_t r, size_t c, std::array<std::array<float, 32>, 32> &heights) {
-    if (r != 0) {
-        heights[r-1][c] -= 0.005f;
-    }
-    if (c != 0) {
-        heights[r][c-1] -= 0.005f;
-    }
-    if (r != 31) {
-        heights[r+1][c] -= 0.005f;
-    }
-    if (c != 31) {
-        heights[r][c+1] -= 0.005f;
-    }
+void update_neighbours(size_t r, size_t c, std::array<std::array<float, 32>, 32> &heights,
+                       bool dig) {
+  // the amount to change neighbouring terrain cells by
+  float delta = dig ? -0.005f : 0.005f;
+  if (r != 0) {
+    heights[r - 1][c] += delta;
+  }
+  if (c != 0) {
+    heights[r][c - 1] += delta;
+  }
+  if (r != 31) {
+    heights[r + 1][c] += delta;
+  }
+  if (c != 31) {
+    heights[r][c + 1] += delta;
+  }
 }
 
 glm::vec3 normal_computation(const std::array<std::array<float, 32>, 32> &heights, size_t i,
@@ -344,12 +347,12 @@ int main() {
         static_cast<size_t>(std::clamp(static_cast<int>(bucketPos.x / SPACING), 0, 31));
     size_t bucketCol =
         static_cast<size_t>(std::clamp(static_cast<int>(bucketPos.z / SPACING), 0, 31));
-    
+
     // also set the bucket's height to the current terrain height
     // to make it look like its 'digging'
     bucketPos.y = terrain[bucketRow][bucketCol];
-    glm::mat4 bucketModel = glm::translate(glm::mat4(1.0f), bucketPos) *
-                             glm::scale(glm::mat4(1.0f), glm::vec3(0.3f));
+    glm::mat4 bucketModel =
+        glm::translate(glm::mat4(1.0f), bucketPos) * glm::scale(glm::mat4(1.0f), glm::vec3(0.3f));
     glm::mat4 bucketMvp = perspective * camera.getViewMatrix() * bucketModel;
     basic_shader.uniformInfo("mvp", bucketMvp);
     basic_shader.uniformInfo("objectColour", glm::vec3(0.9f, 0.75, 0.2f));
@@ -360,8 +363,8 @@ int main() {
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
       terrain[bucketRow][bucketCol] -= 0.01f;
       // lower the neighbours by a smaller amount to make the terrain make sense
-      lower_neighbours(bucketRow, bucketCol, terrain);
-      
+      update_neighbours(bucketRow, bucketCol, terrain, true);
+
       // TODO: this is currently unoptimized, but fine for now
       // rebuild the vertices because of the new terrain
       vertices.clear();
@@ -381,7 +384,30 @@ int main() {
                    GL_DYNAMIC_DRAW);
     }
 
-    // TODO: simulation step
+    // button to dump
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+      terrain[bucketRow][bucketCol] += 0.01f;
+      // raise the neighbours by a smaller amount to make the terrain make sense
+      update_neighbours(bucketRow, bucketCol, terrain, false);
+
+      // TODO: this is currently unoptimized, but fine for now
+      // rebuild the vertices because of the new terrain
+      vertices.clear();
+      for (size_t i = 0; i < 32; ++i) {
+        for (size_t j = 0; j < 32; ++j) {
+          // the normals hold the information for lighting / shading
+          glm::vec3 n = normal_computation(terrain, i, j);
+          // vertices holds the information for smoothing out the terrain properly (breaking the
+          // terrain into triangles)
+          vertices.insert(vertices.end(), {i * SPACING, terrain[i][j], j * SPACING, n.x, n.y, n.z});
+        }
+      }
+
+      // reupload updated vertices data to gpu
+      glBindBuffer(GL_ARRAY_BUFFER, VBO);
+      glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(),
+                   GL_DYNAMIC_DRAW);
+    }
 
     glfwSwapBuffers(window); // shows new frame
     glfwPollEvents();        // polls for actions
