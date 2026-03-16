@@ -17,6 +17,7 @@
 #include <iostream>
 
 constexpr float SPACING = 0.1f;
+constexpr float MAX_DIFF = 0.065f; // SPACING * tan(33) to determine the angle of repose for soil
 
 // anon namespace instead of static functions
 namespace {
@@ -95,6 +96,26 @@ glm::vec3 normal_computation(const std::array<std::array<float, 32>, 32> &height
 
   glm::vec3 normal = glm::normalize(cross(tangentZ, tangentX));
   return normal;
+}
+
+bool stabilize_soil(std::array<std::array<float, 32>, 32> &heights) {
+  bool stable = true;
+  static constexpr std::pair<int, int> directions[] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
+  for (int i = 0; i < 32; ++i) {
+    for (int j = 0; j < 32; ++j) {
+      for (const auto &[x, y] : directions) {
+        if (i + x >= 0 && i + x < 32 && j + y >= 0 && j + y < 32) {
+          int ni = i + x, nj = j + y;
+          if (heights[i][j] - heights[ni][nj] > MAX_DIFF) {
+            stable = false;
+            heights[i][j] -= 0.005f;
+            heights[ni][nj] += 0.005f;
+          }
+        }
+      }
+    }
+  }
+  return stable;
 }
 
 } // namespace
@@ -359,29 +380,14 @@ int main() {
     glBindVertexArray(bucketVAO);
     glDrawElements(GL_TRIANGLES, cubeIndices.size(), GL_UNSIGNED_INT, 0);
 
+    bool terrainChanged = false;
+
     // button to dig
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
       terrain[bucketRow][bucketCol] -= 0.01f;
       // lower the neighbours by a smaller amount to make the terrain make sense
       update_neighbours(bucketRow, bucketCol, terrain, true);
-
-      // TODO: this is currently unoptimized, but fine for now
-      // rebuild the vertices because of the new terrain
-      vertices.clear();
-      for (size_t i = 0; i < 32; ++i) {
-        for (size_t j = 0; j < 32; ++j) {
-          // the normals hold the information for lighting / shading
-          glm::vec3 n = normal_computation(terrain, i, j);
-          // vertices holds the information for smoothing out the terrain properly (breaking the
-          // terrain into triangles)
-          vertices.insert(vertices.end(), {i * SPACING, terrain[i][j], j * SPACING, n.x, n.y, n.z});
-        }
-      }
-
-      // reupload updated vertices data to gpu
-      glBindBuffer(GL_ARRAY_BUFFER, VBO);
-      glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(),
-                   GL_DYNAMIC_DRAW);
+      terrainChanged = true;
     }
 
     // button to dump
@@ -389,6 +395,15 @@ int main() {
       terrain[bucketRow][bucketCol] += 0.01f;
       // raise the neighbours by a smaller amount to make the terrain make sense
       update_neighbours(bucketRow, bucketCol, terrain, false);
+      terrainChanged = true;
+    }
+
+    if (terrainChanged) {
+      for (size_t iter = 0; iter < 10; ++iter) {
+        if (stabilize_soil(terrain)) {
+          break;
+        }
+      }
 
       // TODO: this is currently unoptimized, but fine for now
       // rebuild the vertices because of the new terrain
