@@ -2,7 +2,15 @@
 
 // private functions
 float Terrain::heightFunction(size_t r, size_t c) {
-  return 0.15f * std::sin(r * 0.4f) + 0.1f * std::sin(c * 0.6f);
+  float x = static_cast<float>(r);
+  float z = static_cast<float>(c);
+
+  // multiple octaves of sine waves to approximate natural terrain
+  float h = 0.0f;
+  h += 0.3f * std::sin(x * 0.05f) * std::cos(z * 0.07f);                 // large rolling hills
+  h += 0.15f * std::sin(x * 0.15f + 1.3f) * std::sin(z * 0.12f + 0.7f);  // medium undulation
+  h += 0.05f * std::sin(x * 0.4f + 2.7f) * std::cos(z * 0.35f + 1.2f);   // small bumps
+  return h;
 }
 
 glm::vec3 Terrain::normalComputation(size_t i, size_t j) {
