@@ -12,12 +12,10 @@
 #include "glm/trigonometric.hpp"
 #include "rendering/camera.h"
 #include "rendering/shader.h"
+#include "simulation/terrain.h"
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
-
-constexpr float SPACING = 0.1f;
-constexpr float MAX_DIFF = 0.065f; // SPACING * tan(33) to determine the angle of repose for soil
 
 // anon namespace instead of static functions
 namespace {
@@ -61,63 +59,6 @@ void cursorPosCallBack(GLFWwindow *window, double xpos, double ypos) {
   Camera *camera = static_cast<Camera *>(glfwGetWindowUserPointer(window));
   camera->look(xOffset, yOffset);
 }
-
-float height_function(size_t x, size_t y) {
-  return 0.15f * std::sin(x * 0.4f) + 0.1f * std::sin(y * 0.6f);
-}
-
-void update_neighbours(size_t r, size_t c, std::array<std::array<float, 32>, 32> &heights,
-                       bool dig) {
-  // the amount to change neighbouring terrain cells by
-  float delta = dig ? -0.005f : 0.005f;
-  if (r != 0) {
-    heights[r - 1][c] += delta;
-  }
-  if (c != 0) {
-    heights[r][c - 1] += delta;
-  }
-  if (r != 31) {
-    heights[r + 1][c] += delta;
-  }
-  if (c != 31) {
-    heights[r][c + 1] += delta;
-  }
-}
-
-glm::vec3 normal_computation(const std::array<std::array<float, 32>, 32> &heights, size_t i,
-                             size_t j) {
-  float left = i == 0 ? heights[i][j] : heights[i - 1][j];
-  float right = i == 31 ? heights[i][j] : heights[i + 1][j];
-  float up = j == 31 ? heights[i][j] : heights[i][j + 1];
-  float down = j == 0 ? heights[i][j] : heights[i][j - 1];
-
-  glm::vec3 tangentX = glm::vec3(2 * SPACING, right - left, 0);
-  glm::vec3 tangentZ = glm::vec3(0, up - down, 2 * SPACING);
-
-  glm::vec3 normal = glm::normalize(cross(tangentZ, tangentX));
-  return normal;
-}
-
-bool stabilize_soil(std::array<std::array<float, 32>, 32> &heights) {
-  bool stable = true;
-  static constexpr std::pair<int, int> directions[] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
-  for (int i = 0; i < 32; ++i) {
-    for (int j = 0; j < 32; ++j) {
-      for (const auto &[x, y] : directions) {
-        if (i + x >= 0 && i + x < 32 && j + y >= 0 && j + y < 32) {
-          int ni = i + x, nj = j + y;
-          if (heights[i][j] - heights[ni][nj] > MAX_DIFF) {
-            stable = false;
-            heights[i][j] -= 0.005f;
-            heights[ni][nj] += 0.005f;
-          }
-        }
-      }
-    }
-  }
-  return stable;
-}
-
 } // namespace
 
 int main() {
@@ -173,10 +114,6 @@ int main() {
   // set background colour
   glClearColor(0.53f, 0.81f, 0.92f, 1.0f);
 
-  std::vector<float> vertices;
-  std::array<std::array<float, 32>, 32> terrain{};
-  std::vector<unsigned int> connections;
-
   // clang-format off
   // each vertex: x, y, z, nx, ny, nz
   std::array<float, 144> cubeVertices = {
@@ -222,65 +159,6 @@ int main() {
   };
   // clang-format on
 
-  // set initial heights in terrain array
-  for (size_t i = 0; i < 32; ++i) {
-    for (size_t j = 0; j < 32; ++j) {
-      terrain[i][j] = height_function(i, j);
-    }
-  }
-
-  // set vectors
-  for (size_t i = 0; i < 32; ++i) {
-    for (size_t j = 0; j < 32; ++j) {
-      glm::vec3 n = normal_computation(terrain, i, j);
-      vertices.insert(vertices.end(), {i * SPACING, terrain[i][j], j * SPACING, n.x, n.y, n.z});
-    }
-  }
-
-  // 32x32 grid filled with triangles
-  for (size_t i = 0; i < 31; ++i) {
-    for (size_t j = 0; j < 31; ++j) {
-      unsigned int top_left = i * terrain.size() + j;
-      unsigned int top_right = i * terrain.size() + (j + 1);
-      unsigned int bottom_left = (i + 1) * terrain.size() + j;
-      unsigned int bottom_right = (i + 1) * terrain.size() + (j + 1);
-
-      connections.insert(connections.end(), {top_left, bottom_left, bottom_right});
-      connections.insert(connections.end(), {top_left, bottom_right, top_right});
-    }
-  }
-
-  GLuint VBO; // vertex buffer object
-  GLuint VAO; // vertex array object (how to read the vbo)
-  GLuint EBO; // element buffer object
-  glGenVertexArrays(1, &VAO);
-  glBindVertexArray(VAO);
-  glGenBuffers(1, &EBO);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, connections.size() * sizeof(unsigned int),
-               connections.data(), GL_STATIC_DRAW);
-  // memory chunks fed from cpu to gpu to handle graphics rendering
-  glGenBuffers(1, &VBO);
-  // static draw tells the GPU data is set once and used multiple times
-  glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  // copies user defined data into bound buffer
-  // dynamic draw tells the gpu driver that this buffer will be updated frequently so allocate
-  // memory to optimize for this
-  glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_DYNAMIC_DRAW);
-
-  // tells opengl how to read position data from the buffer
-  // we have the vector and its normal vector both stored so there is two calls to read
-  // one is standard vectors, the other is starting from the normals
-
-  // position: attribute 0, offset 0
-  // index, component #, data type, normalize?, stride, offset
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
-  glEnableVertexAttribArray(0);
-
-  // normal: attribute 1, offset 3 floats
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
-  glEnableVertexAttribArray(1);
-
   GLuint bucketVAO, bucketVBO, bucketEBO;
 
   glGenVertexArrays(1, &bucketVAO);
@@ -306,6 +184,8 @@ int main() {
 
   // using shader class and giving path to shader code
   Shader basic_shader("shaders/basic.vert", "shaders/basic.frag");
+
+  Terrain terrain;
 
   // model matrix (4x4 identity matrix)
   glm::mat4 model = glm::mat4(1.0f);
@@ -357,21 +237,14 @@ int main() {
     basic_shader.use();
 
     // terrain
-    glm::mat4 terrainMvp = perspective * camera.getViewMatrix() * model;
-    basic_shader.uniformInfo("mvp", terrainMvp);
-    basic_shader.uniformInfo("objectColour", glm::vec3(0.55f, 0.36f, 0.2f));
-    glBindVertexArray(VAO);
-    glDrawElements(GL_TRIANGLES, connections.size(), GL_UNSIGNED_INT, 0);
+    terrain.draw(basic_shader, perspective * camera.getViewMatrix());
 
     // bucket
-    size_t bucketRow =
-        static_cast<size_t>(std::clamp(static_cast<int>(bucketPos.x / SPACING), 0, 31));
-    size_t bucketCol =
-        static_cast<size_t>(std::clamp(static_cast<int>(bucketPos.z / SPACING), 0, 31));
+    auto [bucketRow, bucketCol] = terrain.worldToGrid(bucketPos.x, bucketPos.z);
 
     // also set the bucket's height to the current terrain height
     // to make it look like its 'digging'
-    bucketPos.y = terrain[bucketRow][bucketCol];
+    bucketPos.y = terrain.getHeight(bucketRow, bucketCol).value_or(0.0f);
     glm::mat4 bucketModel =
         glm::translate(glm::mat4(1.0f), bucketPos) * glm::scale(glm::mat4(1.0f), glm::vec3(0.3f));
     glm::mat4 bucketMvp = perspective * camera.getViewMatrix() * bucketModel;
@@ -380,48 +253,14 @@ int main() {
     glBindVertexArray(bucketVAO);
     glDrawElements(GL_TRIANGLES, cubeIndices.size(), GL_UNSIGNED_INT, 0);
 
-    bool terrainChanged = false;
-
     // button to dig
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-      terrain[bucketRow][bucketCol] -= 0.01f;
-      // lower the neighbours by a smaller amount to make the terrain make sense
-      update_neighbours(bucketRow, bucketCol, terrain, true);
-      terrainChanged = true;
+      terrain.modify(bucketRow, bucketCol, true);
     }
 
     // button to dump
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-      terrain[bucketRow][bucketCol] += 0.01f;
-      // raise the neighbours by a smaller amount to make the terrain make sense
-      update_neighbours(bucketRow, bucketCol, terrain, false);
-      terrainChanged = true;
-    }
-
-    if (terrainChanged) {
-      for (size_t iter = 0; iter < 10; ++iter) {
-        if (stabilize_soil(terrain)) {
-          break;
-        }
-      }
-
-      // TODO: this is currently unoptimized, but fine for now
-      // rebuild the vertices because of the new terrain
-      vertices.clear();
-      for (size_t i = 0; i < 32; ++i) {
-        for (size_t j = 0; j < 32; ++j) {
-          // the normals hold the information for lighting / shading
-          glm::vec3 n = normal_computation(terrain, i, j);
-          // vertices holds the information for smoothing out the terrain properly (breaking the
-          // terrain into triangles)
-          vertices.insert(vertices.end(), {i * SPACING, terrain[i][j], j * SPACING, n.x, n.y, n.z});
-        }
-      }
-
-      // reupload updated vertices data to gpu
-      glBindBuffer(GL_ARRAY_BUFFER, VBO);
-      glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(),
-                   GL_DYNAMIC_DRAW);
+      terrain.modify(bucketRow, bucketCol, false);
     }
 
     glfwSwapBuffers(window); // shows new frame

@@ -36,6 +36,7 @@ add_executable(excavation-sim
     src/main.cpp
     src/rendering/shader.cpp
     src/rendering/camera.cpp
+    src/simulation/terrain.cpp
 )
 
 target_link_libraries(excavation-sim PRIVATE

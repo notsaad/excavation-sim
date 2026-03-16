@@ -4,7 +4,6 @@
 
 #include <glm/glm.hpp>
 
-// private function
 void Camera::updateFront() {
   float x, y, z;
   x = glm::cos(yaw) * glm::cos(pitch);
