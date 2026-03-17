@@ -11,18 +11,18 @@ private:
   // initial vertical tilt
   float pitch = 0.0f; // mouse Y movement
   glm::vec3 front;
-  float speed = 0.05f;
+  float speed = 5.0f;
 
   void updateFront();
 
 public:
   Camera();
-  void moveForward();
-  void moveBackward();
-  void moveRight();
-  void moveLeft();
-  void moveUp();
-  void moveDown();
+  void moveForward(float dt);
+  void moveBackward(float dt);
+  void moveRight(float dt);
+  void moveLeft(float dt);
+  void moveUp(float dt);
+  void moveDown(float dt);
   void look(float xOffset, float yOffset);
   glm::mat4 getViewMatrix();
 };

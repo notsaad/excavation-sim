@@ -19,23 +19,23 @@ Camera::Camera() {
   updateFront();
 }
 
-void Camera::moveForward() { position += (front * speed); }
+void Camera::moveForward(float dt) { position += (front * (speed * dt)); }
 
-void Camera::moveBackward() { position -= (front * speed); }
+void Camera::moveBackward(float dt) { position -= (front * (speed * dt)); }
 
-void Camera::moveRight() {
+void Camera::moveRight(float dt) {
   glm::vec3 right = glm::normalize(glm::cross(front, up));
-  position += (right * speed);
+  position += (right * (speed * dt));
 }
 
-void Camera::moveLeft() {
+void Camera::moveLeft(float dt) {
   glm::vec3 right = glm::normalize(glm::cross(front, up));
-  position -= (right * speed);
+  position -= (right * (speed * dt));
 }
 
-void Camera::moveUp() { position += (up * speed); }
+void Camera::moveUp(float dt) { position += (up * (speed * dt)); }
 
-void Camera::moveDown() { position -= (up * speed); }
+void Camera::moveDown(float dt) { position -= (up * (speed * dt)); }
 
 void Camera::look(float xOffset, float yOffset) {
   yaw += (xOffset * 0.002f);

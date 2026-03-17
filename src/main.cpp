@@ -13,7 +13,6 @@
 #include "rendering/camera.h"
 #include "rendering/shader.h"
 #include "simulation/terrain.h"
-#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 
@@ -196,28 +195,35 @@ int main() {
 
   glm::vec3 bucketPos(1.5f, 0.5f, -1.5f);
 
+  float lastTime = glfwGetTime();
+
   // this is the main render loop that runs 60 times per second (60FPS)
   while (!glfwWindowShouldClose(window)) {
+    // implement delta time so movements aren't frame dependent
+    float currentTime = glfwGetTime();
+    float deltaTime = currentTime - lastTime;
+    lastTime = currentTime;
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // sets the background to chose colour
 
     // camera movement checks (wasd/shift/space)
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-      camera.moveForward();
+      camera.moveForward(deltaTime);
     }
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-      camera.moveLeft();
+      camera.moveLeft(deltaTime);
     }
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-      camera.moveBackward();
+      camera.moveBackward(deltaTime);
     }
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-      camera.moveRight();
+      camera.moveRight(deltaTime);
     }
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-      camera.moveUp();
+      camera.moveUp(deltaTime);
     }
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-      camera.moveDown();
+      camera.moveDown(deltaTime);
     }
 
     // bucket movement checks (arrow keys)
