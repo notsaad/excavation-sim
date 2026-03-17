@@ -25,7 +25,7 @@ private:
 
   float heightFunction(size_t r, size_t c);
   glm::vec3 normalComputation(size_t i, size_t j);
-  void updateNeighbours(size_t r, size_t c, bool dig);
+  void updateNeighbours(size_t r, size_t c, bool dig, float dt);
   bool stabilizeSoil();
   void rebuildVertices();
 
@@ -33,7 +33,7 @@ public:
   Terrain();
   ~Terrain();
   void draw(Shader &, const glm::mat4 &vp);
-  void modify(size_t row, size_t col, bool dig);
+  void modify(size_t row, size_t col, bool dig, float dt);
   std::optional<float> getHeight(size_t row, size_t col);
   std::pair<size_t, size_t> worldToGrid(float x, float z);
 };

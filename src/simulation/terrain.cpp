@@ -26,9 +26,10 @@ glm::vec3 Terrain::normalComputation(size_t i, size_t j) {
   return normal;
 }
 
-void Terrain::updateNeighbours(size_t r, size_t c, bool dig) {
+void Terrain::updateNeighbours(size_t r, size_t c, bool dig, float dt) {
   // the amount to change neighbouring terrain cells by
-  float delta = dig ? -0.005f : 0.005f;
+  float delta = dig ? -0.5f : 0.5f;
+  delta *= dt;
   if (r != 0) {
     heights[r - 1][c] += delta;
   }
@@ -145,10 +146,11 @@ void Terrain::draw(Shader &shader, const glm::mat4 &vp) {
   glDrawElements(GL_TRIANGLES, connections.size(), GL_UNSIGNED_INT, 0);
 }
 
-void Terrain::modify(size_t row, size_t col, bool dig) {
-  float delta = dig ? -0.01f : 0.01f;
+void Terrain::modify(size_t row, size_t col, bool dig, float dt) {
+  float delta = dig ? -1.0f : 1.0f;
+  delta *= dt;
   heights[row][col] += delta;
-  updateNeighbours(row, col, dig);
+  updateNeighbours(row, col, dig, dt);
 
   for (size_t iter = 0; iter < 10; ++iter) {
     if (stabilizeSoil()) {

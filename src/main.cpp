@@ -262,12 +262,12 @@ int main() {
 
     // button to dig
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-      terrain.modify(bucketRow, bucketCol, true);
+      terrain.modify(bucketRow, bucketCol, true, deltaTime);
     }
 
     // button to dump
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-      terrain.modify(bucketRow, bucketCol, false);
+      terrain.modify(bucketRow, bucketCol, false, deltaTime);
     }
 
     glfwSwapBuffers(window); // shows new frame
