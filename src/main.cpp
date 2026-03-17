@@ -62,6 +62,7 @@ void cursorPosCallBack(GLFWwindow *window, double xpos, double ypos) {
 
 int main() {
   glfwSetErrorCallback(errorCallback);
+  constexpr float BUCKET_SPEED = 2.0f;
 
   if (!glfwInit()) {
     std::cerr << "Failed to initialize GLFW\n";
@@ -228,16 +229,16 @@ int main() {
 
     // bucket movement checks (arrow keys)
     if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
-      bucketPos.x -= 0.02f;
+      bucketPos.x -= (BUCKET_SPEED * deltaTime);
     }
     if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
-      bucketPos.x += 0.02f;
+      bucketPos.x += (BUCKET_SPEED * deltaTime);
     }
     if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
-      bucketPos.z += 0.02f;
+      bucketPos.z += (BUCKET_SPEED * deltaTime);
     }
     if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
-      bucketPos.z -= 0.02f;
+      bucketPos.z -= (BUCKET_SPEED * deltaTime);
     }
 
     basic_shader.use();
