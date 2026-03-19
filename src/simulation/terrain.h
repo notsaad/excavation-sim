@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <glm/glm.hpp>
 #include <optional>
+#include <unordered_set>
 #include <vector>
 
 // FIXME
@@ -19,6 +20,7 @@ private:
   std::array<std::array<float, GRID_SIZE>, GRID_SIZE> heights{};
   std::vector<float> vertices;
   std::vector<unsigned int> connections;
+  std::unordered_set<size_t> modifiedVertices;
   GLuint VBO; // vertex buffer object
   GLuint VAO; // vertex array object (how to read the vbo)
   GLuint EBO; // element buffer object
@@ -26,7 +28,7 @@ private:
   float heightFunction(size_t r, size_t c);
   glm::vec3 normalComputation(size_t i, size_t j);
   void updateNeighbours(size_t r, size_t c, bool dig, float dt);
-  bool stabilizeSoil();
+  void stabilizeSoil();
   void rebuildVertices();
 
 public:

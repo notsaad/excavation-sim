@@ -1,4 +1,5 @@
 #include "terrain.h"
+#include <unordered_set>
 
 // private functions
 float Terrain::heightFunction(size_t r, size_t c) {
@@ -7,16 +8,16 @@ float Terrain::heightFunction(size_t r, size_t c) {
 
   // multiple octaves of sine waves to approximate natural terrain
   float h = 0.0f;
-  h += 0.3f * std::sin(x * 0.05f) * std::cos(z * 0.07f);                 // large rolling hills
-  h += 0.15f * std::sin(x * 0.15f + 1.3f) * std::sin(z * 0.12f + 0.7f);  // medium undulation
-  h += 0.05f * std::sin(x * 0.4f + 2.7f) * std::cos(z * 0.35f + 1.2f);   // small bumps
+  h += 0.3f * std::sin(x * 0.05f) * std::cos(z * 0.07f);                // large rolling hills
+  h += 0.15f * std::sin(x * 0.15f + 1.3f) * std::sin(z * 0.12f + 0.7f); // medium undulation
+  h += 0.05f * std::sin(x * 0.4f + 2.7f) * std::cos(z * 0.35f + 1.2f);  // small bumps
   return h;
 }
 
 glm::vec3 Terrain::normalComputation(size_t i, size_t j) {
   float left = i == 0 ? this->heights[i][j] : this->heights[i - 1][j];
-  float right = i == this->GRID_SIZE -1 ? this->heights[i][j] : this->heights[i + 1][j];
-  float up = j == this->GRID_SIZE -1 ? this->heights[i][j] : this->heights[i][j + 1];
+  float right = i == this->GRID_SIZE - 1 ? this->heights[i][j] : this->heights[i + 1][j];
+  float up = j == this->GRID_SIZE - 1 ? this->heights[i][j] : this->heights[i][j + 1];
   float down = j == 0 ? this->heights[i][j] : this->heights[i][j - 1];
 
   glm::vec3 tangentX = glm::vec3(2 * SPACING, right - left, 0);
@@ -36,16 +37,15 @@ void Terrain::updateNeighbours(size_t r, size_t c, bool dig, float dt) {
   if (c != 0) {
     heights[r][c - 1] += delta;
   }
-  if (r != this->GRID_SIZE -1) {
+  if (r != this->GRID_SIZE - 1) {
     heights[r + 1][c] += delta;
   }
-  if (c != this->GRID_SIZE -1) {
+  if (c != this->GRID_SIZE - 1) {
     heights[r][c + 1] += delta;
   }
 }
 
-bool Terrain::stabilizeSoil() {
-  bool stable = true;
+void Terrain::stabilizeSoil() {
   static constexpr std::pair<int, int> directions[] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
   for (int i = 0; i < this->GRID_SIZE; ++i) {
     for (int j = 0; j < this->GRID_SIZE; ++j) {
@@ -53,7 +53,7 @@ bool Terrain::stabilizeSoil() {
         if (i + x >= 0 && i + x < this->GRID_SIZE && j + y >= 0 && j + y < this->GRID_SIZE) {
           int ni = i + x, nj = j + y;
           if (this->heights[i][j] - this->heights[ni][nj] > MAX_DIFF) {
-            stable = false;
+            this->modifiedVertices.insert(static_cast<size_t>(i) * GRID_SIZE + static_cast<size_t>(j));
             this->heights[i][j] -= 0.005f;
             this->heights[ni][nj] += 0.005f;
           }
@@ -61,21 +61,47 @@ bool Terrain::stabilizeSoil() {
       }
     }
   }
-  return stable;
 }
 
-// TODO: this is currently unoptimized, but fine for now
 void Terrain::rebuildVertices() {
-    vertices.clear();
-    for (size_t i = 0; i < this->GRID_SIZE; ++i) {
-      for (size_t j = 0; j < this->GRID_SIZE; ++j) {
-        // the normals hold the information for lighting / shading
-        glm::vec3 n = normalComputation(i, j);
-        // vertices holds the information for smoothing out the terrain properly (breaking the
-        // terrain into triangles)
-        vertices.insert(vertices.end(), {i * SPACING, this->heights[i][j], j * SPACING, n.x, n.y, n.z});
+  // expand dirty set to include neighbours (their normals depend on adjacent heights)
+  std::unordered_set<size_t> updateIndices;
+  for (size_t idx : modifiedVertices) {
+    size_t r = idx / GRID_SIZE;
+    size_t c = idx % GRID_SIZE;
+    for (int dr = -1; dr <= 1; ++dr) {
+      for (int dc = -1; dc <= 1; ++dc) {
+        int nr = static_cast<int>(r) + dr;
+        int nc = static_cast<int>(c) + dc;
+        if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE) {
+          updateIndices.insert(static_cast<size_t>(nr) * GRID_SIZE + static_cast<size_t>(nc));
+        }
       }
     }
+  }
+
+  // update only dirty vertices in-place
+  for (size_t idx : updateIndices) {
+    size_t i = idx / GRID_SIZE;
+    size_t j = idx % GRID_SIZE;
+    glm::vec3 n = normalComputation(i, j);
+    size_t offset = idx * 6;
+    vertices[offset] = i * SPACING;
+    vertices[offset + 1] = heights[i][j];
+    vertices[offset + 2] = j * SPACING;
+    vertices[offset + 3] = n.x;
+    vertices[offset + 4] = n.y;
+    vertices[offset + 5] = n.z;
+  }
+
+  // upload only the affected range to the GPU
+  auto [minIt, maxIt] = std::minmax_element(updateIndices.begin(), updateIndices.end());
+  size_t minIdx = *minIt;
+  size_t maxIdx = *maxIt;
+  size_t byteOffset = minIdx * 6 * sizeof(float);
+  size_t byteSize = (maxIdx - minIdx + 1) * 6 * sizeof(float);
+  glBindBuffer(GL_ARRAY_BUFFER, VBO);
+  glBufferSubData(GL_ARRAY_BUFFER, byteOffset, byteSize, &vertices[minIdx * 6]);
 }
 
 // public functions
@@ -96,8 +122,8 @@ Terrain::Terrain() {
     }
   }
 
-  for (size_t i = 0; i < this->GRID_SIZE -1; ++i) {
-    for (size_t j = 0; j < this->GRID_SIZE -1; ++j) {
+  for (size_t i = 0; i < this->GRID_SIZE - 1; ++i) {
+    for (size_t j = 0; j < this->GRID_SIZE - 1; ++j) {
       unsigned int top_left = i * this->GRID_SIZE + j;
       unsigned int top_right = i * this->GRID_SIZE + (j + 1);
       unsigned int bottom_left = (i + 1) * this->GRID_SIZE + j;
@@ -152,17 +178,22 @@ void Terrain::modify(size_t row, size_t col, bool dig, float dt) {
   heights[row][col] += delta;
   updateNeighbours(row, col, dig, dt);
 
+  size_t prevSize = this->modifiedVertices.size();
   for (size_t iter = 0; iter < 10; ++iter) {
-    if (stabilizeSoil()) {
+      stabilizeSoil();
+      if (prevSize == this->modifiedVertices.size()) {
       break;
     }
   }
 
-  rebuildVertices();
+  this->modifiedVertices.insert(row * GRID_SIZE + col);
+  if (row > 0) this->modifiedVertices.insert((row - 1) * GRID_SIZE + col);
+  if (row < GRID_SIZE - 1) this->modifiedVertices.insert((row + 1) * GRID_SIZE + col);
+  if (col > 0) this->modifiedVertices.insert(row * GRID_SIZE + (col - 1));
+  if (col < GRID_SIZE - 1) this->modifiedVertices.insert(row * GRID_SIZE + (col + 1));
 
-  // reupload updated vertices data to gpu
-  glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_DYNAMIC_DRAW);
+  rebuildVertices();
+  this->modifiedVertices.clear();
 }
 
 std::optional<float> Terrain::getHeight(size_t row, size_t col) {
@@ -172,9 +203,11 @@ std::optional<float> Terrain::getHeight(size_t row, size_t col) {
   return std::nullopt;
 }
 
-std::pair<size_t, size_t> Terrain::worldToGrid(float x, float z){
-    std::pair<size_t, size_t> coordinates = {0, 0};
-    coordinates.first = static_cast<size_t>(std::clamp(static_cast<int>(x / this->SPACING), 0, this->GRID_SIZE -1));
-    coordinates.second = static_cast<size_t>(std::clamp(static_cast<int>(z / this->SPACING), 0, this->GRID_SIZE -1));
-    return coordinates;
+std::pair<size_t, size_t> Terrain::worldToGrid(float x, float z) {
+  std::pair<size_t, size_t> coordinates = {0, 0};
+  coordinates.first =
+      static_cast<size_t>(std::clamp(static_cast<int>(x / this->SPACING), 0, this->GRID_SIZE - 1));
+  coordinates.second =
+      static_cast<size_t>(std::clamp(static_cast<int>(z / this->SPACING), 0, this->GRID_SIZE - 1));
+  return coordinates;
 }
