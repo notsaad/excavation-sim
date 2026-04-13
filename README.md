@@ -2,6 +2,9 @@
 
 Real-time terrain deformation simulator built with C++ and OpenGL. An excavator bucket digs into deformable soil, and the terrain responds with local material removal, accumulation, and stabilization behavior.
 
+<img width="580" height="599" alt="image" src="https://github.com/user-attachments/assets/a3e9484c-f6cc-422b-8f17-84e404b7c8bd" />
+
+
 ## Features
 
 - telemetry (see below for more information)
