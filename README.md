@@ -2,22 +2,13 @@
 
 Real-time terrain deformation simulator built with C++ and OpenGL. An excavator bucket digs into deformable soil, and the terrain responds with local material removal, accumulation, and stabilization behavior.
 
-This project is positioned as a small systems-focused graphics/simulation project: it emphasizes data movement, incremental updates, and measurable runtime behavior rather than just rendering a scene.
+## Features
 
-## Highlights
-
-- Real-time deformable `64x64` terrain mesh (`4,096` vertices, `7,938` triangles)
-- Local soil stabilization pass that relaxes steep height differences toward an angle-of-repose style constraint
-- Dirty-region vertex rebuilds and partial GPU buffer uploads via `glBufferSubData` instead of full terrain re-uploads
-- Live runtime telemetry for FPS, average and p95 frame time, terrain update cost, dirty vertices, upload bytes, and stabilization passes
-- Deterministic benchmark mode with fixed-step simulation, scripted dig/dump workload, stdout summary, and optional CSV export
-
-## Performance and Systems Focus
-
-- Terrain edits are applied on the CPU, then only affected vertices and neighboring normals are rebuilt
-- GPU traffic is bounded by uploading only the touched vertex range instead of replacing the full terrain buffer each update
-- Runtime telemetry makes frame pacing and terrain-update cost visible during interactive use
-- Benchmark mode makes performance claims reproducible instead of anecdotal
+- telemetry (see below for more information)
+- deformable terrain mesh
+- optimized render loops
+- benchmark mode for deterministic performance metrics
+- multiple supported flags
 
 ## Runtime Telemetry
 
@@ -106,11 +97,3 @@ Or run the executable directly:
 - `Q`: dump
 - `Esc`: quit
 
-## Why This Project Matters
-
-This is not just an OpenGL demo. It shows:
-
-- Real-time simulation updates tied to rendering
-- Explicit CPU-to-GPU data movement decisions
-- Incremental update strategies instead of brute-force full rebuilds
-- Built-in instrumentation and benchmark tooling to support performance discussion on a resume
