@@ -1,4 +1,8 @@
 #include "terrain.h"
+
+#include <algorithm>
+#include <chrono>
+#include <cmath>
 #include <unordered_set>
 
 // private functions
@@ -63,7 +67,7 @@ void Terrain::stabilizeSoil() {
   }
 }
 
-void Terrain::rebuildVertices() {
+std::pair<std::size_t, std::size_t> Terrain::rebuildVertices() {
   // expand dirty set to include neighbours (their normals depend on adjacent heights)
   std::unordered_set<size_t> updateIndices;
   for (size_t idx : modifiedVertices) {
@@ -78,6 +82,10 @@ void Terrain::rebuildVertices() {
         }
       }
     }
+  }
+
+  if (updateIndices.empty()) {
+    return {0, 0};
   }
 
   // update only dirty vertices in-place
@@ -102,10 +110,14 @@ void Terrain::rebuildVertices() {
   size_t byteSize = (maxIdx - minIdx + 1) * 6 * sizeof(float);
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
   glBufferSubData(GL_ARRAY_BUFFER, byteOffset, byteSize, &vertices[minIdx * 6]);
+  return {updateIndices.size(), byteSize};
 }
 
 // public functions
 Terrain::Terrain() {
+  vertices.reserve(static_cast<std::size_t>(GRID_SIZE) * GRID_SIZE * 6);
+  connections.reserve(static_cast<std::size_t>(GRID_SIZE - 1) * (GRID_SIZE - 1) * 6);
+
   // set initial heights in terrain array
   for (size_t i = 0; i < this->GRID_SIZE; ++i) {
     for (size_t j = 0; j < this->GRID_SIZE; ++j) {
@@ -172,7 +184,11 @@ void Terrain::draw(Shader &shader, const glm::mat4 &vp) {
   glDrawElements(GL_TRIANGLES, connections.size(), GL_UNSIGNED_INT, 0);
 }
 
-void Terrain::modify(size_t row, size_t col, bool dig, float dt) {
+TerrainUpdateStats Terrain::modify(size_t row, size_t col, bool dig, float dt) {
+  TerrainUpdateStats stats;
+  stats.updated = true;
+  const auto start = std::chrono::steady_clock::now();
+
   float delta = dig ? -1.0f : 1.0f;
   delta *= dt;
   heights[row][col] += delta;
@@ -180,10 +196,12 @@ void Terrain::modify(size_t row, size_t col, bool dig, float dt) {
 
   size_t prevSize = this->modifiedVertices.size();
   for (size_t iter = 0; iter < 10; ++iter) {
-      stabilizeSoil();
-      if (prevSize == this->modifiedVertices.size()) {
+    stabilizeSoil();
+    ++stats.stabilizationPasses;
+    if (prevSize == this->modifiedVertices.size()) {
       break;
     }
+    prevSize = this->modifiedVertices.size();
   }
 
   this->modifiedVertices.insert(row * GRID_SIZE + col);
@@ -192,8 +210,14 @@ void Terrain::modify(size_t row, size_t col, bool dig, float dt) {
   if (col > 0) this->modifiedVertices.insert(row * GRID_SIZE + (col - 1));
   if (col < GRID_SIZE - 1) this->modifiedVertices.insert(row * GRID_SIZE + (col + 1));
 
-  rebuildVertices();
+  const auto [dirtyVertices, uploadBytes] = rebuildVertices();
+  stats.dirtyVertices = dirtyVertices;
+  stats.uploadBytes = uploadBytes;
   this->modifiedVertices.clear();
+
+  const auto end = std::chrono::steady_clock::now();
+  stats.cpuMs = std::chrono::duration<double, std::milli>(end - start).count();
+  return stats;
 }
 
 std::optional<float> Terrain::getHeight(size_t row, size_t col) {

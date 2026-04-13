@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <array>
+#include <chrono>
 #include <glad/gl.h>
 
 #include <GLFW/glfw3.h>
@@ -14,10 +16,149 @@
 #include "rendering/shader.h"
 #include "simulation/terrain.h"
 #include <cstdlib>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
 
 // anon namespace instead of static functions
 namespace {
+constexpr char WINDOW_TITLE[] = "Excavation Simulator";
+constexpr std::size_t METRIC_WINDOW = 240;
+
+struct RollingMetric {
+  std::array<double, METRIC_WINDOW> values{};
+  std::size_t count = 0;
+  std::size_t next = 0;
+  double sum = 0.0;
+
+  void add(double value) {
+    if (count < values.size()) {
+      values[next] = value;
+      sum += value;
+      ++count;
+      next = (next + 1) % values.size();
+      return;
+    }
+
+    sum -= values[next];
+    values[next] = value;
+    sum += value;
+    next = (next + 1) % values.size();
+  }
+
+  bool empty() const { return count == 0; }
+
+  double average() const {
+    if (count == 0) {
+      return 0.0;
+    }
+    return sum / static_cast<double>(count);
+  }
+
+  double percentile(double percentileValue) const {
+    if (count == 0) {
+      return 0.0;
+    }
+
+    std::vector<double> samples(values.begin(), values.begin() + static_cast<long>(count));
+    std::sort(samples.begin(), samples.end());
+    const double clamped = std::clamp(percentileValue, 0.0, 1.0);
+    const std::size_t index =
+        static_cast<std::size_t>(clamped * static_cast<double>(samples.size() - 1));
+    return samples[index];
+  }
+};
+
+std::string formatBytes(double bytes) {
+  std::ostringstream formatted;
+  formatted << std::fixed;
+
+  if (bytes >= 1024.0 * 1024.0) {
+    formatted << std::setprecision(2) << (bytes / (1024.0 * 1024.0)) << " MiB";
+    return formatted.str();
+  }
+
+  if (bytes >= 1024.0) {
+    formatted << std::setprecision(1) << (bytes / 1024.0) << " KiB";
+    return formatted.str();
+  }
+
+  formatted << std::setprecision(0) << bytes << " B";
+  return formatted.str();
+}
+
+void accumulateTerrainStats(TerrainUpdateStats &aggregate, const TerrainUpdateStats &sample) {
+  if (!sample.updated) {
+    return;
+  }
+
+  aggregate.updated = true;
+  aggregate.cpuMs += sample.cpuMs;
+  aggregate.dirtyVertices += sample.dirtyVertices;
+  aggregate.uploadBytes += sample.uploadBytes;
+  aggregate.stabilizationPasses += sample.stabilizationPasses;
+}
+
+struct RuntimeTelemetry {
+  RollingMetric frameMs;
+  RollingMetric terrainMs;
+  RollingMetric dirtyVertices;
+  RollingMetric uploadBytes;
+  RollingMetric stabilizationPasses;
+  std::size_t framesSinceTitleUpdate = 0;
+  double lastTitleUpdateTime = 0.0;
+
+  void recordFrame(double sampleMs) {
+    frameMs.add(sampleMs);
+    ++framesSinceTitleUpdate;
+  }
+
+  void recordTerrainUpdate(const TerrainUpdateStats &stats) {
+    if (!stats.updated) {
+      return;
+    }
+
+    terrainMs.add(stats.cpuMs);
+    dirtyVertices.add(static_cast<double>(stats.dirtyVertices));
+    uploadBytes.add(static_cast<double>(stats.uploadBytes));
+    stabilizationPasses.add(static_cast<double>(stats.stabilizationPasses));
+  }
+
+  void updateWindowTitle(GLFWwindow *window, double now) {
+    if (lastTitleUpdateTime == 0.0) {
+      lastTitleUpdateTime = now;
+      return;
+    }
+
+    const double elapsed = now - lastTitleUpdateTime;
+    if (elapsed < 1.0 || framesSinceTitleUpdate == 0) {
+      return;
+    }
+
+    const double fps = static_cast<double>(framesSinceTitleUpdate) / elapsed;
+    std::ostringstream title;
+    title << std::fixed << std::setprecision(1);
+    title << WINDOW_TITLE << " | " << fps << " FPS";
+    title << " | frame " << frameMs.average() << " ms avg / " << frameMs.percentile(0.95)
+          << " p95";
+
+    if (terrainMs.empty()) {
+      title << " | terrain idle";
+    } else {
+      title << " | terrain " << terrainMs.average() << " ms";
+      title << " | dirty " << std::setprecision(0) << dirtyVertices.average();
+      title << " | upload " << formatBytes(uploadBytes.average());
+      title << " | passes " << std::setprecision(1) << stabilizationPasses.average();
+    }
+
+    glfwSetWindowTitle(window, title.str().c_str());
+    lastTitleUpdateTime = now;
+    framesSinceTitleUpdate = 0;
+  }
+};
+
 // just called on errors
 void errorCallback(int error, const char *description) {
   std::cerr << "GLFW error " << error << ": " << description << "\n";
@@ -196,14 +337,18 @@ int main() {
 
   glm::vec3 bucketPos(1.5f, 0.5f, -1.5f);
 
-  float lastTime = glfwGetTime();
+  RuntimeTelemetry telemetry;
+  double lastTime = glfwGetTime();
 
   // this is the main render loop that runs 60 times per second (60FPS)
   while (!glfwWindowShouldClose(window)) {
+    const auto frameStart = std::chrono::steady_clock::now();
+
     // implement delta time so movements aren't frame dependent
-    float currentTime = glfwGetTime();
-    float deltaTime = currentTime - lastTime;
+    const double currentTime = glfwGetTime();
+    const float deltaTime = static_cast<float>(currentTime - lastTime);
     lastTime = currentTime;
+    TerrainUpdateStats frameTerrainStats;
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // sets the background to chose colour
 
@@ -262,16 +407,24 @@ int main() {
 
     // button to dig
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-      terrain.modify(bucketRow, bucketCol, true, deltaTime);
+      accumulateTerrainStats(frameTerrainStats, terrain.modify(bucketRow, bucketCol, true, deltaTime));
     }
 
     // button to dump
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-      terrain.modify(bucketRow, bucketCol, false, deltaTime);
+      accumulateTerrainStats(frameTerrainStats,
+                             terrain.modify(bucketRow, bucketCol, false, deltaTime));
     }
 
     glfwSwapBuffers(window); // shows new frame
     glfwPollEvents();        // polls for actions
+
+    const auto frameEnd = std::chrono::steady_clock::now();
+    const double frameDurationMs =
+        std::chrono::duration<double, std::milli>(frameEnd - frameStart).count();
+    telemetry.recordFrame(frameDurationMs);
+    telemetry.recordTerrainUpdate(frameTerrainStats);
+    telemetry.updateWindowTitle(window, glfwGetTime());
   }
 
   glfwDestroyWindow(window);
